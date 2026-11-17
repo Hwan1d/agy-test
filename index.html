@@ -318,10 +318,18 @@
 
         <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
           <div>
-            <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:4px; color:var(--text-primary);">
-              ITS API 인증키 (apiKey)
-            </label>
-            <input type="text" id="inputItsApiKey" class="custom-select" placeholder="발급받은 ITS API 키 입력" style="font-family:monospace;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="font-size:0.75rem; font-weight:600; color:var(--text-primary);">
+                ITS API 인증키 (apiKey)
+              </label>
+              <span id="itsKeyStatusBadge" style="font-size:0.7rem; color:#10b981; font-weight:600; display:none;">
+                🔒 보안 키 적용됨
+              </span>
+            </div>
+            <input type="password" id="inputItsApiKey" class="custom-select" placeholder="시스템 보안 인증키 적용 중 (직접 입력 시 대체)" style="font-family:monospace;">
+            <p id="itsKeyHelpText" style="font-size:0.72rem; color:var(--text-muted); margin-top:4px; line-height:1.4;">
+              시스템에 등록된 보안 인증키로 자동 연결됩니다. 키를 직접 변경할 때만 입력해 주세요.
+            </p>
           </div>
 
           <div style="display:flex; gap:10px;">

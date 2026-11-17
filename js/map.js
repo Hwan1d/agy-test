@@ -157,7 +157,7 @@ const TrafficMap = (() => {
           <strong>config.js</strong>를 생성하거나, 아래 입력창에 키를 입력해 주세요. (브라우저 로컬 스토리지에만 보관됩니다)
         </p>
         <div style="display:flex; gap:8px; width:100%; max-width:380px;">
-          <input type="text" id="inputInitKakaoKey" class="custom-select" placeholder="카카오 JavaScript 키 입력" style="flex:1; font-family:monospace;">
+          <input type="password" id="inputInitKakaoKey" class="custom-select" placeholder="카카오 JavaScript 키 입력" style="flex:1; font-family:monospace;">
           <button id="btnSaveInitKakaoKey" class="btn-watch-cctv" style="width:auto; padding:0 16px;">저장 & 시작</button>
         </div>
       </div>
@@ -197,7 +197,7 @@ const TrafficMap = (() => {
         `}
 
         <div style="font-size:0.75rem; color:#64748b; font-family:monospace; margin-bottom:16px;">
-          사용 중인 키: ${key ? key.substring(0, 8) + '...' : '(없음)'} | 접속 프로토콜: ${window.location.protocol}
+          사용 중인 키: ${key ? '●●●●●●●● (보안 마스킹)' : '(미등록)'} | 접속 프로토콜: ${window.location.protocol}
         </div>
 
         <div style="display:flex; gap:8px;">

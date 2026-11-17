@@ -425,8 +425,30 @@ const TrafficApp = (() => {
   const openItsModal = () => {
     const modal = document.getElementById('itsModal');
     const input = document.getElementById('inputItsApiKey');
+    const badge = document.getElementById('itsKeyStatusBadge');
+    const help = document.getElementById('itsKeyHelpText');
+
     if (input) {
-      input.value = ItsApi.getApiKey();
+      // 보안 준수: 절대 원본 API 키를 value에 평문으로 노출하지 않음
+      input.value = '';
+      if (ItsApi.hasApiKey()) {
+        input.placeholder = '●●●●●●●● (시스템 보안 인증키 적용 중)';
+        if (badge) {
+          badge.style.display = 'inline-block';
+          badge.innerText = '🔒 보안 키 적용됨';
+        }
+        if (help) {
+          help.innerText = '✅ 시스템 보안 인증키가 안전하게 적용되어 있습니다. 별도 입력 없이 바로 조회할 수 있습니다.';
+          help.style.color = '#38bdf8';
+        }
+      } else {
+        input.placeholder = '발급받은 ITS API 키 입력';
+        if (badge) badge.style.display = 'none';
+        if (help) {
+          help.innerText = 'ITS Open API 키를 입력하시면 전국의 실시간 CCTV가 연동됩니다.';
+          help.style.color = 'var(--text-muted)';
+        }
+      }
     }
     if (modal) {
       modal.classList.add('active');
@@ -446,14 +468,21 @@ const TrafficApp = (() => {
     const selectRoad = document.getElementById('selectItsRoadType');
     const selectType = document.getElementById('selectItsCctvType');
 
-    const apiKey = input && input.value.trim() ? input.value.trim() : ItsApi.getApiKey();
+    // 사용자가 입력 필드에 새 키를 직접 타이핑한 경우에만 해당 키 사용, 없으면 시스템 사전 등록 키(getApiKey) 사용
+    const userTypedKey = input && input.value.trim() ? input.value.trim() : '';
+    const apiKey = userTypedKey || ItsApi.getApiKey();
+
     if (!apiKey) {
       if (!isSilent) showItsStatus('⚠️ ITS API 인증키를 입력해 주세요.', 'error');
       return;
     }
 
-    // 키 저장
-    ItsApi.saveApiKey(apiKey);
+    // 사용자가 직접 새 키를 입력했을 때만 저장하고 입력창은 즉시 비움 (보안 마스킹 유지)
+    if (userTypedKey) {
+      ItsApi.saveApiKey(userTypedKey);
+      input.value = '';
+      input.placeholder = '●●●●●●●● (사용자 입력 키 저장됨)';
+    }
 
     const roadType = selectRoad ? selectRoad.value : 'ex';
     const cctvType = selectType ? parseInt(selectType.value) : 1;

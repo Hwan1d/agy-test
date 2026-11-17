@@ -143,8 +143,14 @@ const ItsApi = (() => {
     }
   };
 
+  // API 키 등록 여부 확인 (보안: 실제 키 문자열을 노출하지 않고 등록 여부만 불리언으로 반환)
+  const hasApiKey = () => {
+    return Boolean(getApiKey());
+  };
+
   return {
     getApiKey,
+    hasApiKey,
     saveApiKey,
     fetchCctvList
   };
