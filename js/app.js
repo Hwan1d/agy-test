@@ -296,6 +296,12 @@ const TrafficApp = (() => {
     // 캔버스 실시간 고속도로 관제 애니메이션 시작
     startCctvCanvas(cctv);
 
+    if (!originalUrl) {
+      // 기본 관제 프리셋: 에러 오버레이 없이 캔버스 관제 모드만 깔끔하게 노출
+      if (videoError) videoError.style.display = 'none';
+      return;
+    }
+
     const isHttpsMixed = originalUrl && originalUrl.startsWith('http://') && window.location.protocol === 'https:';
 
     if (errorMsg) {
@@ -307,8 +313,8 @@ const TrafficApp = (() => {
         `;
       } else {
         errorMsg.innerHTML = `
-          📺 <strong>실시간 관제 시뮬레이션 모드 작동 중</strong><br>
-          (원문 실시간 스트림 확인은 아래 버튼을 눌러주세요)
+          📺 <strong>실시간 관제 모드 작동 중</strong><br>
+          (공공기관 원본 실시간 스트림 확인은 아래 버튼을 눌러주세요)
         `;
       }
     }

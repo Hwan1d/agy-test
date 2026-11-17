@@ -149,7 +149,7 @@ const TrafficData = (() => {
     }
   ];
 
-  // 주요 CCTV 지점 목록 (검증된 고화질 공공 미디어 소스)
+  // 주요 CCTV 지점 목록 (고속도로 관제 전용)
   const CCTV_POINTS = [
     {
       id: 'cctv-seoul-toll',
@@ -160,7 +160,7 @@ const TrafficData = (() => {
       speed: '78 km/h',
       status: 'normal',
       imgPlaceholder: 'https://images.unsplash.com/photo-1545179605-1296651e9d43?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
+      videoUrl: '',
       hlsUrl: '',
       description: '경부선 서울기점 17.5km 지점. 본선 통행 원활.'
     },
@@ -173,7 +173,7 @@ const TrafficData = (() => {
       speed: '54 km/h',
       status: 'slow',
       imgPlaceholder: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://media.w3.org/2010/05/sintel/trailer.mp4',
+      videoUrl: '',
       hlsUrl: '',
       description: '판교JC 진출입로 진입차량 증가로 일시 서행.'
     },
@@ -186,7 +186,7 @@ const TrafficData = (() => {
       speed: '38 km/h',
       status: 'congested',
       imgPlaceholder: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
+      videoUrl: '',
       hlsUrl: '',
       description: '영동선 강릉방향 진입램프 연결로 정체 심화.'
     },
@@ -199,7 +199,7 @@ const TrafficData = (() => {
       speed: '40 km/h',
       status: 'slow',
       imgPlaceholder: 'https://images.unsplash.com/photo-1498084393753-b411b2d26b34?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://media.w3.org/2010/05/sintel/trailer.mp4',
+      videoUrl: '',
       hlsUrl: '',
       description: '천안방향 차량 증가로 속도 감속 중.'
     },
@@ -212,7 +212,7 @@ const TrafficData = (() => {
       speed: '52 km/h',
       status: 'slow',
       imgPlaceholder: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
+      videoUrl: '',
       hlsUrl: '',
       description: '서해대교 교량 통행 보통. 측풍 주의보 발령.'
     },
@@ -225,7 +225,7 @@ const TrafficData = (() => {
       speed: '34 km/h',
       status: 'congested',
       imgPlaceholder: 'https://images.unsplash.com/photo-1520690214124-2405c5217036?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://media.w3.org/2010/05/sintel/trailer.mp4',
+      videoUrl: '',
       hlsUrl: '',
       description: '강변북로 합류지점 연결로 정체 3.2km 지속.'
     },
@@ -238,7 +238,7 @@ const TrafficData = (() => {
       speed: '86 km/h',
       status: 'normal',
       imgPlaceholder: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
+      videoUrl: '',
       hlsUrl: '',
       description: '대전IC 부근 본선 및 요금소 전구간 원활.'
     },
@@ -251,7 +251,7 @@ const TrafficData = (() => {
       speed: '91 km/h',
       status: 'normal',
       imgPlaceholder: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://media.w3.org/2010/05/sintel/trailer.mp4',
+      videoUrl: '',
       hlsUrl: '',
       description: '주말 나들이 차량 전구간 정상 소통.'
     }

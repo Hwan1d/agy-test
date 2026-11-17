@@ -72,10 +72,22 @@ const ItsApi = (() => {
     const timeoutId = setTimeout(() => controller.abort(), 12000);
 
     try {
-      const response = await fetch(requestUrl, {
-        method: 'GET',
-        signal: controller.signal
-      });
+      let response;
+      try {
+        // 1차: 브라우저 직접 요청 시도
+        response = await fetch(requestUrl, {
+          method: 'GET',
+          signal: controller.signal
+        });
+      } catch (directErr) {
+        console.warn('ITS 직접 연결 실패(CORS 등), 백업 프록시로 연결합니다:', directErr);
+        // 2차: CORS 우회 프록시를 통해 안정적 재요청
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(requestUrl)}`;
+        response = await fetch(proxyUrl, {
+          method: 'GET',
+          signal: controller.signal
+        });
+      }
 
       clearTimeout(timeoutId);
 
