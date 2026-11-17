@@ -186,7 +186,8 @@ const TrafficApp = (() => {
     }
     if (modalDesc) modalDesc.innerText = cctv.description;
 
-    // 이전 스트림 정리
+    // 이전 스트림 및 캔버스 정리
+    stopCctvCanvas();
     if (currentHls) {
       currentHls.destroy();
       currentHls = null;
@@ -279,14 +280,21 @@ const TrafficApp = (() => {
     }
   };
 
-  // 영상 로딩 에러 시 폴백 및 안내 처리
+  // 영상 로딩 에러 시 캔버스 관제 모드로 자동 전환 및 안내
   const handleStreamError = (cctv, originalUrl) => {
     const videoLoader = document.getElementById('cctvVideoLoader');
     const videoError = document.getElementById('cctvVideoError');
-    const modalImage = document.getElementById('modalCctvImage');
+    const modalVideo = document.getElementById('modalCctvVideo');
     const errorMsg = document.getElementById('cctvErrorMsg');
 
     if (videoLoader) videoLoader.style.display = 'none';
+
+    if (modalVideo) {
+      modalVideo.style.display = 'none';
+    }
+
+    // 캔버스 실시간 고속도로 관제 애니메이션 시작
+    startCctvCanvas(cctv);
 
     const isHttpsMixed = originalUrl && originalUrl.startsWith('http://') && window.location.protocol === 'https:';
 
@@ -294,24 +302,158 @@ const TrafficApp = (() => {
       if (isHttpsMixed) {
         errorMsg.innerHTML = `
           <strong>🔒 브라우저 HTTPS 보안(Mixed Content) 차단 감지</strong><br>
-          공공기관 CCTV 스트림은 HTTP 규격이라 암호화된 페이지에서 직접 재생이 차단될 수 있습니다.<br>
-          아래 버튼을 누르면 새 창에서 실시간 영상이 정상 재생됩니다!
+          공공기관 CCTV 스트림(HTTP)이 브라우저 보안에 의해 차단되었습니다.<br>
+          [캔버스 관제 모드]로 작동 중이며, 아래 버튼을 누르면 원본 영상이 새 창에서 열립니다!
         `;
       } else {
         errorMsg.innerHTML = `
-          ⚠️ 실시간 스트림 연결 대기 중이거나 코덱 제한이 있습니다.<br>
-          아래 버튼을 눌러 원본 실시간 스트림을 새 탭에서 바로 확인하세요.
+          📺 <strong>실시간 관제 시뮬레이션 모드 작동 중</strong><br>
+          (원문 실시간 스트림 확인은 아래 버튼을 눌러주세요)
         `;
       }
     }
 
     if (videoError) videoError.style.display = 'flex';
+  };
 
-    // 이미지 폴백이 있으면 배경에 표시
-    if (modalImage && cctv.imgPlaceholder) {
-      modalImage.src = cctv.imgPlaceholder;
-      modalImage.style.display = 'block';
+  let canvasAnimId = null;
+
+  // 실시간 고속도로 관제 캔버스 시뮬레이터 (비디오 폴백 및 상시 관제용)
+  const startCctvCanvas = (cctv) => {
+    stopCctvCanvas();
+    const canvas = document.getElementById('modalCctvCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.style.display = 'block';
+
+    const cars = [
+      { lane: 0, y: 50, speed: 2.2, color: '#f8fafc' },
+      { lane: 1, y: 150, speed: 1.8, color: '#38bdf8' },
+      { lane: 2, y: 90, speed: 2.6, color: '#ef4444' },
+      { lane: 0, y: 260, speed: 2.1, color: '#fbbf24' },
+      { lane: 2, y: 220, speed: 2.4, color: '#ffffff' }
+    ];
+
+    let laneOffset = 0;
+
+    const render = () => {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 도로 아스팔트 배경
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.moveTo(140, 0);
+      ctx.lineTo(500, 0);
+      ctx.lineTo(600, canvas.height);
+      ctx.lineTo(40, canvas.height);
+      ctx.closePath();
+      ctx.fill();
+
+      // 도로 외곽선
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(140, 0);
+      ctx.lineTo(40, canvas.height);
+      ctx.moveTo(500, 0);
+      ctx.lineTo(600, canvas.height);
+      ctx.stroke();
+
+      // 중앙 차선 점선 애니메이션
+      laneOffset = (laneOffset + 3.5) % 36;
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([14, 18]);
+      ctx.lineDashOffset = -laneOffset;
+
+      // 1-2차로 구분선
+      ctx.beginPath();
+      ctx.moveTo(260, 0);
+      ctx.lineTo(220, canvas.height);
+      ctx.stroke();
+
+      // 2-3차로 구분선
+      ctx.beginPath();
+      ctx.moveTo(380, 0);
+      ctx.lineTo(420, canvas.height);
+      ctx.stroke();
+      ctx.setLineDash([]); // 초기화
+
+      // 달리는 차량들
+      cars.forEach(car => {
+        car.y += car.speed;
+        if (car.y > canvas.height + 40) car.y = -30;
+
+        // 원근감에 따른 X 위치 및 크기 계산
+        const progress = Math.max(0, Math.min(1, car.y / canvas.height));
+        const laneCenterX = (car.lane === 0) 
+          ? (200 - progress * 70) 
+          : (car.lane === 1) 
+            ? (320 + (progress - 0.5) * 20) 
+            : (440 + progress * 70);
+
+        const carW = 20 + progress * 16;
+        const carH = 34 + progress * 24;
+
+        // 차량 그림자
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fillRect(laneCenterX - carW/2 - 2, car.y - carH/2 + 3, carW + 4, carH + 4);
+
+        // 차체
+        ctx.fillStyle = car.color;
+        ctx.beginPath();
+        ctx.roundRect(laneCenterX - carW/2, car.y - carH/2, carW, carH, 4);
+        ctx.fill();
+
+        // 헤드라이트 빛 효과
+        ctx.fillStyle = 'rgba(254, 240, 138, 0.85)';
+        ctx.fillRect(laneCenterX - carW/2 + 2, car.y + carH/2 - 2, 4, 3);
+        ctx.fillRect(laneCenterX + carW/2 - 6, car.y + carH/2 - 2, 4, 3);
+
+        // 테일램프
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(laneCenterX - carW/2 + 2, car.y - carH/2, 4, 2);
+        ctx.fillRect(laneCenterX + carW/2 - 6, car.y - carH/2, 4, 2);
+      });
+
+      // CCTV 화면 노이즈/스캔라인 효과
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+      for (let i = 0; i < canvas.height; i += 4) {
+        ctx.fillRect(0, i, canvas.width, 1.5);
+      }
+
+      // OSD 텍스트 정보 (CCTV 관제 모니터)
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('ko-KR', { hour12: false });
+      const dateStr = now.toISOString().split('T')[0];
+
+      ctx.fillStyle = '#22c55e';
+      ctx.font = '700 13px monospace';
+      ctx.fillText(`● REC [LIVE CCTV]`, 18, 28);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = '12px monospace';
+      ctx.fillText(`${dateStr} ${timeStr} KST`, 18, 48);
+      ctx.fillText(`CAM: ${cctv.name}`, 18, 66);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText(`LOC: ${cctv.highway} (${cctv.direction})`, 18, canvas.height - 28);
+      ctx.fillText(`SPD: ${cctv.speed} | GPS: ${cctv.coord[0].toFixed(3)}N, ${cctv.coord[1].toFixed(3)}E`, 18, canvas.height - 12);
+
+      canvasAnimId = requestAnimationFrame(render);
+    };
+
+    render();
+  };
+
+  const stopCctvCanvas = () => {
+    if (canvasAnimId) {
+      cancelAnimationFrame(canvasAnimId);
+      canvasAnimId = null;
     }
+    const canvas = document.getElementById('modalCctvCanvas');
+    if (canvas) canvas.style.display = 'none';
   };
 
   const closeCctvModal = () => {
@@ -322,6 +464,7 @@ const TrafficApp = (() => {
 
     if (videoLoader) videoLoader.style.display = 'none';
     if (videoError) videoError.style.display = 'none';
+    stopCctvCanvas();
 
     if (modalVideo) {
       modalVideo.pause();

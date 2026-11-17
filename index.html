@@ -255,6 +255,8 @@
         <div class="modal-video-stream-box">
           <!-- 비디오 태그 (실시간 스트림 재생) -->
           <video id="modalCctvVideo" controls autoplay muted playsinline loop style="width:100%; height:100%; object-fit:cover; background:#000;"></video>
+          <!-- 캔버스 실시간 관제 시뮬레이터 (비디오 폴백용) -->
+          <canvas id="modalCctvCanvas" width="640" height="360" style="display:none; width:100%; height:100%; background:#111;"></canvas>
           <img id="modalCctvImage" src="" alt="CCTV Stream" style="display:none; width:100%; height:100%; object-fit:cover;">
           
           <!-- 로딩 인디케이터 -->
