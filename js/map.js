@@ -408,16 +408,23 @@ const TrafficMap = (() => {
   const showIncidentOverlay = (inc, latLng) => {
     closeActiveOverlay();
 
+    const liveBadge = inc.isLiveIts
+      ? '<span style="font-size:0.65rem; background:#ef4444; color:#fff; padding:1px 5px; border-radius:3px; margin-left:4px; font-weight:700;">ITS LIVE</span>'
+      : '';
+
     const content = document.createElement('div');
     content.className = 'kakao-custom-overlay map-incident-popup';
     content.innerHTML = `
       <div class="popup-header incident-${inc.severity}">
-        <span class="incident-badge">${inc.typeName}</span>
+        <div style="display:flex; align-items:center;">
+          <span class="incident-badge">${inc.typeName}</span>
+          ${liveBadge}
+        </div>
         <span class="incident-time">${inc.time}</span>
         <button class="overlay-close-btn" onclick="window.TrafficMap.closeActiveOverlay()">&times;</button>
       </div>
       <div class="popup-body">
-        <h4>${inc.locationName}</h4>
+        <h4>${inc.highway} ${inc.locationName ? '(' + inc.locationName + ')' : ''}</h4>
         <p class="incident-detail">${inc.detail}</p>
         <div class="incident-delay">
           <span>예상 지연:</span>

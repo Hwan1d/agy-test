@@ -156,7 +156,12 @@
         <div class="panel-section">
           <div class="panel-section-title">
             <span>실시간 돌발·사고 상황</span>
-            <span class="panel-badge">실시간 감지</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="panel-badge" id="incidentBadge">실시간 감지</span>
+              <button id="btnRefreshIncidents" title="돌발상황 즉시 새로고침" style="background:transparent; border:none; color:var(--text-secondary); cursor:pointer; font-size:0.82rem; padding:2px 4px; border-radius:4px; display:inline-flex; align-items:center; transition:transform 0.2s ease;">
+                🔄
+              </button>
+            </div>
           </div>
           <div class="incident-feed-list" id="incidentListContainer">
             <!-- 동적 렌더링 -->

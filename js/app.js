@@ -94,34 +94,65 @@ const TrafficApp = (() => {
     });
   };
 
-  // 실시간 돌발 상황 피드 렌더링
+  // 실시간 돌발 상황 피드 렌더링 (ITS 실제 공공데이터 연동)
   const renderIncidentList = () => {
     const container = document.getElementById('incidentListContainer');
+    const badge = document.getElementById('incidentBadge');
     if (!container) return;
 
     const incidents = TrafficData.getIncidents();
+    const hasLive = TrafficData.hasLiveIncidents();
     container.innerHTML = '';
+
+    if (badge) {
+      if (hasLive) {
+        badge.innerText = `ITS LIVE ${incidents.length}건`;
+        badge.style.color = '#ef4444';
+        badge.style.background = 'rgba(239, 68, 68, 0.18)';
+        badge.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+      } else {
+        badge.innerText = `실시간 ${incidents.length}건`;
+      }
+    }
+
+    if (!incidents || incidents.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:28px 12px; color:var(--text-muted); font-size:0.8rem; line-height:1.6;">
+          <div style="font-size:1.8rem; margin-bottom:8px;">🟢</div>
+          <strong>실시간 특이 돌발 상황 없음</strong><br>
+          전국 주요 고속도로가 원활하게 소통 중입니다.
+        </div>
+      `;
+      return;
+    }
 
     incidents.forEach(inc => {
       const item = document.createElement('div');
       item.className = `incident-item severity-${inc.severity}`;
+      const liveTag = inc.isLiveIts
+        ? `<span style="font-size:0.65rem; background:rgba(239,68,68,0.22); color:#f87171; padding:1px 5px; border-radius:3px; margin-left:6px; font-weight:700;">● ITS 공공실시간</span>`
+        : '';
+
       item.innerHTML = `
         <div class="incident-item-header">
-          <span class="incident-tag tag-${inc.severity}">${inc.typeName}</span>
+          <div style="display:flex; align-items:center;">
+            <span class="incident-tag tag-${inc.severity}">${inc.typeName}</span>
+            ${liveTag}
+          </div>
           <span class="incident-item-time">${inc.time}</span>
         </div>
         <div class="incident-item-title">${inc.highway} - ${inc.locationName}</div>
         <div class="incident-item-desc">${inc.detail}</div>
         <div class="incident-item-footer">
-          <span class="incident-delay-badge">+${inc.delayMin}분 지연</span>
+          <span class="incident-delay-badge">+${inc.delayMin}분 지연 예상</span>
           <button class="btn-goto-map" data-coord="${inc.coord.join(',')}">
-            위치 보기
+            현장 위치 보기 &rarr;
           </button>
         </div>
       `;
 
       item.querySelector('.btn-goto-map').addEventListener('click', () => {
-        TrafficMap.flyToCoord(inc.coord, 13);
+        TrafficMap.flyToCoord(inc.coord, 14);
       });
 
       container.appendChild(item);
@@ -529,6 +560,9 @@ const TrafficApp = (() => {
         btnOpenIts.classList.add('active');
       }
 
+      // 돌발상황도 함께 최신 실제 데이터로 갱신
+      fetchRealtimeIncidents(true);
+
       if (!isSilent) {
         showItsStatus(`✅ 실시간 CCTV ${list.length}개가 지도에 연동되었습니다!`, 'success');
         setTimeout(() => {
@@ -544,10 +578,43 @@ const TrafficApp = (() => {
     }
   };
 
-  // 지도 로드 완료 시 자동 1회 조회
+  // ITS 실시간 돌발·사고 정보 조회 및 대시보드 반영
+  const fetchRealtimeIncidents = async (isSilent = false) => {
+    const btn = document.getElementById('btnRefreshIncidents');
+    const badge = document.getElementById('incidentBadge');
+
+    if (btn) {
+      btn.style.transform = 'rotate(360deg)';
+      setTimeout(() => { btn.style.transform = ''; }, 600);
+    }
+
+    if (!ItsApi.hasApiKey()) {
+      if (!isSilent) showItsStatus('⚠️ ITS API 인증키가 필요합니다.', 'warning');
+      return;
+    }
+
+    try {
+      const list = await ItsApi.fetchIncidentList();
+      if (list && list.length > 0) {
+        TrafficData.setIncidents(list);
+        renderIncidentList();
+        renderKpis();
+        TrafficMap.renderIncidentMarkers(true);
+      } else {
+        if (!isSilent && badge) {
+          badge.innerText = '실시간 정상';
+        }
+      }
+    } catch (err) {
+      console.warn('실시간 돌발상황 조회 에러:', err.message);
+    }
+  };
+
+  // 지도 로드 완료 시 자동 1회 조회 (CCTV + 실시간 돌발상황)
   const onMapReady = () => {
     // 사용자가 등록한 키로 자동 조회 시도 (silent)
     handleFetchItsCctv(false, true);
+    fetchRealtimeIncidents(true);
   };
 
   const showItsStatus = (msg, type) => {
@@ -599,6 +666,8 @@ const TrafficApp = (() => {
     }
   };
 
+  let refreshCount = 0;
+
   // 데이터 갱신 실행
   const triggerRefresh = () => {
     // 1. 모의 데이터 갱신
@@ -616,6 +685,12 @@ const TrafficApp = (() => {
     // 5. CCTV 목록 갱신
     renderCctvList();
 
+    // 6. 30초 주기마다 실제 돌발상황 백그라운드 갱신
+    refreshCount++;
+    if (refreshCount % 3 === 0) {
+      fetchRealtimeIncidents(true);
+    }
+
     // 갱신 시 시각적 플래시 애니메이션
     const pulseIndicator = document.getElementById('livePulseIndicator');
     if (pulseIndicator) {
@@ -626,6 +701,14 @@ const TrafficApp = (() => {
 
   // 이벤트 바인딩
   const bindEvents = () => {
+    // 돌발상황 즉시 새로고침 버튼
+    const refreshIncidentsBtn = document.getElementById('btnRefreshIncidents');
+    if (refreshIncidentsBtn) {
+      refreshIncidentsBtn.addEventListener('click', () => {
+        fetchRealtimeIncidents(false);
+      });
+    }
+
     // 수동 새로고침 버튼
     const refreshBtn = document.getElementById('btnManualRefresh');
     if (refreshBtn) {

@@ -143,6 +143,156 @@ const ItsApi = (() => {
     }
   };
 
+  /**
+   * ITS 실시간 돌발상황(사고, 공사, 통제, 기상) 조회
+   * 엔드포인트: https://openapi.its.go.kr/eventInfo
+   * @param {Object} options 
+   *   - apiKey: ITS 인증키 (미입력 시 시스템 키 사용)
+   *   - bounds: { minX, maxX, minY, maxY } (경도 X, 위도 Y)
+   *   - type: 'all' (전체 도로), 'ex' (고속도로), 'its' (국도)
+   *   - eventType: 'all' (전체), 'acc' (사고), 'work' (공사)
+   */
+  const fetchIncidentList = async (options = {}) => {
+    const apiKey = options.apiKey || getApiKey();
+    if (!apiKey) {
+      console.warn('ITS API 키 미설정: 기본 돌발 데이터 유지');
+      return [];
+    }
+
+    // 기본 대한민국 전역 범위 (경도 126.3 ~ 129.8, 위도 34.5 ~ 38.6)
+    const bounds = options.bounds || {
+      minX: 126.3,
+      maxX: 129.8,
+      minY: 34.5,
+      maxY: 38.6
+    };
+
+    const type = options.type || 'all';
+    const eventType = options.eventType || 'all';
+
+    const params = new URLSearchParams({
+      apiKey: apiKey,
+      type: type,
+      eventType: eventType,
+      minX: bounds.minX.toFixed(5),
+      maxX: bounds.maxX.toFixed(5),
+      minY: bounds.minY.toFixed(5),
+      maxY: bounds.maxY.toFixed(5),
+      getType: 'json'
+    });
+
+    const requestUrl = `https://openapi.its.go.kr/eventInfo?${params.toString()}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+    try {
+      let response;
+      try {
+        // 1차: 브라우저 직접 요청
+        response = await fetch(requestUrl, {
+          method: 'GET',
+          signal: controller.signal
+        });
+      } catch (directErr) {
+        console.warn('ITS 돌발정보 직접 연결 대기(CORS 등), 백업 프록시로 재요청합니다:', directErr);
+        // 2차: CORS 우회 프록시
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(requestUrl)}`;
+        response = await fetch(proxyUrl, {
+          method: 'GET',
+          signal: controller.signal
+        });
+      }
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`ITS 돌발정보 HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data && data.response && data.response.data) {
+        const rawList = Array.isArray(data.response.data)
+          ? data.response.data
+          : [data.response.data];
+
+        return rawList
+          .filter(item => {
+            if (!item) return false;
+            const x = item.coordX || item.coordx;
+            const y = item.coordY || item.coordy;
+            return (x && y) || item.eventCoordinates;
+          })
+          .map((item, idx) => {
+            let lat = parseFloat(item.coordY || item.coordy);
+            let lng = parseFloat(item.coordX || item.coordx);
+
+            if ((isNaN(lat) || isNaN(lng)) && item.eventCoordinates) {
+              const coords = item.eventCoordinates.toString().trim().split(/\s+/);
+              if (coords.length >= 2) {
+                lng = parseFloat(coords[0]);
+                lat = parseFloat(coords[1]);
+              }
+            }
+
+            const rawType = (item.type || item.eventType || '').toString().trim();
+            const message = (item.message || item.eventDetail || item.eventdetail || '').toString().trim();
+            const roadName = (item.roadName || item.roadname || '전국 도로').toString().trim();
+            const direction = (item.roadDrection || item.roadDirection || '').toString().trim();
+            const laneBlocked = (item.laneBlocked || item.laneblocked || '').toString().trim();
+
+            let severity = 'warning';
+            let typeName = rawType || '도로 돌발';
+            let normType = 'accident';
+
+            if (rawType.includes('사고') || message.includes('사고') || item.eventType === '01') {
+              severity = 'danger';
+              typeName = '실제 사고';
+              normType = 'accident';
+            } else if (rawType.includes('공사') || message.includes('공사') || item.eventType === '02') {
+              severity = 'warning';
+              typeName = '도로 공사';
+              normType = 'construction';
+            } else if (rawType.includes('기상') || message.includes('강풍') || message.includes('안개') || message.includes('결빙')) {
+              severity = 'info';
+              typeName = '기상 특보';
+              normType = 'weather';
+            } else if (laneBlocked.includes('전차로') || message.includes('통제')) {
+              severity = 'danger';
+              typeName = '도로 통제';
+              normType = 'congestion';
+            }
+
+            let timeStr = '실시간 감지';
+            if (item.startTime) {
+              const st = item.startTime.toString().padStart(6, '0');
+              timeStr = `${st.substring(0, 2)}:${st.substring(2, 4)} 접수`;
+            }
+
+            return {
+              id: `its-inc-${idx}-${Math.round(lat * 1000)}-${Math.round(lng * 1000)}`,
+              type: normType,
+              typeName: typeName,
+              severity: severity,
+              highway: roadName,
+              locationName: [direction, laneBlocked].filter(Boolean).join(' / ') || '실시간 현장',
+              coord: [lat, lng],
+              time: timeStr,
+              detail: message || `${roadName} ${direction} ${typeName} 발생 (${laneBlocked})`,
+              delayMin: severity === 'danger' ? 25 : (severity === 'warning' ? 15 : 5),
+              isLiveIts: true
+            };
+          });
+      }
+
+      return [];
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.warn('ITS 실시간 돌발상황 조회 에러:', err.message);
+      return [];
+    }
+  };
+
   // API 키 등록 여부 확인 (보안: 실제 키 문자열을 노출하지 않고 등록 여부만 불리언으로 반환)
   const hasApiKey = () => {
     return Boolean(getApiKey());
@@ -152,7 +302,8 @@ const ItsApi = (() => {
     getApiKey,
     hasApiKey,
     saveApiKey,
-    fetchCctvList
+    fetchCctvList,
+    fetchIncidentList
   };
 })();
 

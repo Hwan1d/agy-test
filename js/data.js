@@ -369,8 +369,22 @@ const TrafficData = (() => {
     return CCTV_POINTS.find(c => c.id === id);
   };
 
-  // 돌발상황 목록 반환
-  const getIncidents = () => incidents;
+  // 돌발상황 목록 반환 및 갱신 (기본 프리셋 + ITS 실제 공공데이터)
+  let liveIncidents = null;
+
+  const getIncidents = () => {
+    return (liveIncidents && liveIncidents.length > 0) ? liveIncidents : incidents;
+  };
+
+  const setIncidents = (newList) => {
+    if (Array.isArray(newList)) {
+      liveIncidents = newList;
+    }
+  };
+
+  const hasLiveIncidents = () => {
+    return Boolean(liveIncidents && liveIncidents.length > 0);
+  };
 
   // 전체 요약 KPI 계산
   const getOverviewStats = () => {
@@ -455,6 +469,8 @@ const TrafficData = (() => {
     hasItsCctv,
     getCctvById,
     getIncidents,
+    setIncidents,
+    hasLiveIncidents,
     getOverviewStats,
     simulateLiveUpdate
   };
