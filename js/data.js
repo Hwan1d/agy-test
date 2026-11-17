@@ -160,8 +160,8 @@ const TrafficData = (() => {
       speed: '78 km/h',
       status: 'normal',
       imgPlaceholder: 'https://images.unsplash.com/photo-1545179605-1296651e9d43?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-traffic-on-a-highway-at-night-4247-large.mp4',
+      hlsUrl: '',
       description: '경부선 서울기점 17.5km 지점. 본선 통행 원활.'
     },
     {
@@ -173,8 +173,8 @@ const TrafficData = (() => {
       speed: '54 km/h',
       status: 'slow',
       imgPlaceholder: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-city-traffic-at-night-41589-large.mp4',
+      hlsUrl: '',
       description: '판교JC 진출입로 진입차량 증가로 일시 서행.'
     },
     {
@@ -186,8 +186,8 @@ const TrafficData = (() => {
       speed: '38 km/h',
       status: 'congested',
       imgPlaceholder: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-highway-traffic-during-the-day-4244-large.mp4',
+      hlsUrl: '',
       description: '영동선 강릉방향 진입램프 연결로 정체 심화.'
     },
     {
@@ -199,8 +199,8 @@ const TrafficData = (() => {
       speed: '40 km/h',
       status: 'slow',
       imgPlaceholder: 'https://images.unsplash.com/photo-1498084393753-b411b2d26b34?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-cars-traveling-on-a-highway-4245-large.mp4',
+      hlsUrl: '',
       description: '천안방향 차량 증가로 속도 감속 중.'
     },
     {
@@ -212,8 +212,8 @@ const TrafficData = (() => {
       speed: '52 km/h',
       status: 'slow',
       imgPlaceholder: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-cars-passing-by-on-a-bridge-4248-large.mp4',
+      hlsUrl: '',
       description: '서해대교 교량 통행 보통. 측풍 주의보 발령.'
     },
     {
@@ -225,8 +225,8 @@ const TrafficData = (() => {
       speed: '34 km/h',
       status: 'congested',
       imgPlaceholder: 'https://images.unsplash.com/photo-1520690214124-2405c5217036?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-traffic-in-a-busy-city-avenue-4249-large.mp4',
+      hlsUrl: '',
       description: '강변북로 합류지점 연결로 정체 3.2km 지속.'
     },
     {
@@ -238,8 +238,8 @@ const TrafficData = (() => {
       speed: '86 km/h',
       status: 'normal',
       imgPlaceholder: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackSeeTheWorld.mp4',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-aerial-shot-of-cars-moving-on-a-highway-4250-large.mp4',
+      hlsUrl: '',
       description: '대전IC 부근 본선 및 요금소 전구간 원활.'
     },
     {
@@ -251,8 +251,8 @@ const TrafficData = (() => {
       speed: '91 km/h',
       status: 'normal',
       imgPlaceholder: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=600&q=80',
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-      hlsUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-cars-on-a-highway-during-a-rainy-day-4246-large.mp4',
+      hlsUrl: '',
       description: '주말 나들이 차량 전구간 정상 소통.'
     }
   ];

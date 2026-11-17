@@ -159,7 +159,7 @@ const TrafficApp = (() => {
     });
   };
 
-  // CCTV 상세 팝업 모달 (HLS 스트리밍 & 비디오 재생)
+  // CCTV 상세 팝업 모달 (HLS 스트리밍 & 비디오 재생 및 Mixed Content 방어)
   const openCctvModal = (cctvId) => {
     const cctv = TrafficData.getCctvById(cctvId);
     if (!cctv) return;
@@ -171,6 +171,12 @@ const TrafficApp = (() => {
     const modalLocation = document.getElementById('modalCctvLocation');
     const modalSpeed = document.getElementById('modalCctvSpeed');
     const modalDesc = document.getElementById('modalCctvDesc');
+    const videoLoader = document.getElementById('cctvVideoLoader');
+    const videoError = document.getElementById('cctvVideoError');
+    const errorMsg = document.getElementById('cctvErrorMsg');
+    const btnNewTab = document.getElementById('btnOpenStreamInNewTab');
+    const btnExternal = document.getElementById('btnExternalStream');
+    const btnReload = document.getElementById('btnReloadCctvStream');
 
     if (modalTitle) modalTitle.innerText = `${cctv.name} [실시간 관제 영상]`;
     if (modalLocation) modalLocation.innerText = `${cctv.highway} (${cctv.direction})`;
@@ -186,42 +192,86 @@ const TrafficApp = (() => {
       currentHls = null;
     }
 
-    // 비디오 스트리밍 처리 (HLS 우선, MP4 차선, 이미지 폴백)
+    // UI 상태 초기화
+    if (videoLoader) videoLoader.style.display = 'flex';
+    if (videoError) videoError.style.display = 'none';
     if (modalVideo) {
       modalVideo.style.display = 'block';
-      if (modalImage) modalImage.style.display = 'none';
+      modalVideo.muted = true;
+      modalVideo.defaultMuted = true;
+      modalVideo.setAttribute('playsinline', '');
+      modalVideo.pause();
+      modalVideo.removeAttribute('src');
+      modalVideo.load();
+    }
+    if (modalImage) modalImage.style.display = 'none';
 
-      const streamUrl = cctv.hlsUrl || cctv.videoUrl;
+    let streamUrl = cctv.hlsUrl || cctv.videoUrl;
 
-      if (cctv.hlsUrl && typeof Hls !== 'undefined' && Hls.isSupported()) {
-        currentHls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: true
+    // Mixed Content 대응: 현재가 https이고 streamUrl이 http인 경우 https로 변경 시도
+    let originalUrl = streamUrl;
+    if (streamUrl && streamUrl.startsWith('http://') && window.location.protocol === 'https:') {
+      streamUrl = streamUrl.replace('http://', 'https://');
+    }
+
+    // 새 탭 및 재연결 버튼 바인딩
+    const openOriginalStream = () => {
+      if (originalUrl) window.open(originalUrl, '_blank', 'noopener,noreferrer');
+    };
+    if (btnNewTab) btnNewTab.onclick = openOriginalStream;
+    if (btnExternal) btnExternal.onclick = openOriginalStream;
+    if (btnReload) btnReload.onclick = () => openCctvModal(cctvId);
+
+    // 재생 성공 시 로더 숨김
+    if (modalVideo) {
+      modalVideo.onplaying = () => {
+        if (videoLoader) videoLoader.style.display = 'none';
+        if (videoError) videoError.style.display = 'none';
+      };
+
+      modalVideo.onerror = () => {
+        handleStreamError(cctv, originalUrl);
+      };
+    }
+
+    // HLS 재생 시도
+    if (streamUrl && typeof Hls !== 'undefined' && Hls.isSupported() && (streamUrl.includes('.m3u8') || !streamUrl.endsWith('.mp4'))) {
+      currentHls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        manifestLoadingTimeOut: 10000,
+        manifestLoadingMaxRetry: 2
+      });
+
+      currentHls.loadSource(streamUrl);
+      currentHls.attachMedia(modalVideo);
+
+      currentHls.on(Hls.Events.MANIFEST_PARSED, () => {
+        modalVideo.play().catch(e => {
+          console.warn('Autoplay prevented, user interaction required:', e);
+          if (videoLoader) videoLoader.style.display = 'none';
         });
-        currentHls.loadSource(cctv.hlsUrl);
-        currentHls.attachMedia(modalVideo);
-        currentHls.on(Hls.Events.MANIFEST_PARSED, () => {
-          modalVideo.play().catch(e => console.log('Autoplay muted requirement:', e));
-        });
-        currentHls.on(Hls.Events.ERROR, () => {
-          // HLS 실패 시 mp4 또는 이미지 폴백
-          if (cctv.videoUrl) {
-            modalVideo.src = cctv.videoUrl;
-            modalVideo.play().catch(() => {});
-          } else if (modalImage) {
-            modalVideo.style.display = 'none';
-            modalImage.style.display = 'block';
-            modalImage.src = cctv.imgPlaceholder;
-          }
-        });
-      } else if (cctv.videoUrl) {
-        modalVideo.src = cctv.videoUrl;
-        modalVideo.play().catch(e => console.log('Autoplay prevented:', e));
-      } else if (modalImage) {
-        modalVideo.style.display = 'none';
-        modalImage.style.display = 'block';
-        modalImage.src = cctv.imgPlaceholder;
-      }
+      });
+
+      currentHls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          console.warn('HLS Fatal Error 발생:', data);
+          handleStreamError(cctv, originalUrl);
+        }
+      });
+    } else if (modalVideo && modalVideo.canPlayType('application/vnd.apple.mpegurl') && streamUrl && streamUrl.includes('.m3u8')) {
+      // Safari 네이티브 HLS 지원
+      modalVideo.src = streamUrl;
+      modalVideo.play().catch(() => {});
+    } else if (cctv.videoUrl) {
+      // 일반 MP4 비디오
+      modalVideo.src = cctv.videoUrl;
+      modalVideo.play().catch(e => {
+        console.warn('MP4 Autoplay prevented:', e);
+        if (videoLoader) videoLoader.style.display = 'none';
+      });
+    } else {
+      handleStreamError(cctv, originalUrl);
     }
 
     if (modal) {
@@ -229,9 +279,49 @@ const TrafficApp = (() => {
     }
   };
 
+  // 영상 로딩 에러 시 폴백 및 안내 처리
+  const handleStreamError = (cctv, originalUrl) => {
+    const videoLoader = document.getElementById('cctvVideoLoader');
+    const videoError = document.getElementById('cctvVideoError');
+    const modalImage = document.getElementById('modalCctvImage');
+    const errorMsg = document.getElementById('cctvErrorMsg');
+
+    if (videoLoader) videoLoader.style.display = 'none';
+
+    const isHttpsMixed = originalUrl && originalUrl.startsWith('http://') && window.location.protocol === 'https:';
+
+    if (errorMsg) {
+      if (isHttpsMixed) {
+        errorMsg.innerHTML = `
+          <strong>🔒 브라우저 HTTPS 보안(Mixed Content) 차단 감지</strong><br>
+          공공기관 CCTV 스트림은 HTTP 규격이라 암호화된 페이지에서 직접 재생이 차단될 수 있습니다.<br>
+          아래 버튼을 누르면 새 창에서 실시간 영상이 정상 재생됩니다!
+        `;
+      } else {
+        errorMsg.innerHTML = `
+          ⚠️ 실시간 스트림 연결 대기 중이거나 코덱 제한이 있습니다.<br>
+          아래 버튼을 눌러 원본 실시간 스트림을 새 탭에서 바로 확인하세요.
+        `;
+      }
+    }
+
+    if (videoError) videoError.style.display = 'flex';
+
+    // 이미지 폴백이 있으면 배경에 표시
+    if (modalImage && cctv.imgPlaceholder) {
+      modalImage.src = cctv.imgPlaceholder;
+      modalImage.style.display = 'block';
+    }
+  };
+
   const closeCctvModal = () => {
     const modal = document.getElementById('cctvModal');
     const modalVideo = document.getElementById('modalCctvVideo');
+    const videoLoader = document.getElementById('cctvVideoLoader');
+    const videoError = document.getElementById('cctvVideoError');
+
+    if (videoLoader) videoLoader.style.display = 'none';
+    if (videoError) videoError.style.display = 'none';
 
     if (modalVideo) {
       modalVideo.pause();
