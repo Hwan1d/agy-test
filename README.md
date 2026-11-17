@@ -111,21 +111,22 @@ npx serve .
 
 ---
 
-## 🌐 GitHub Pages 배포 방법 (Deploy to GitHub Pages)
+## 🌐 GitHub Pages 자동 배포 방법 (GitHub Actions 기반)
 
-본 프로젝트는 순수 프론트엔드로 구현되어 별도의 서버 구축 없이 **GitHub Pages**를 통해 즉시 무료로 전 세계에 배포할 수 있습니다!
+본 프로젝트는 GitHub Actions를 통해 **API 키 노출 없이 안전하게 자동 배포**됩니다.
 
-1. 변경사항을 GitHub 원격 저장소(`https://github.com/Hwan1d/agy-test`)로 푸시합니다:
-   ```bash
-   git add .
-   git commit -m "feat: 전국 도로교통 실시간 모니터링 시스템 구축"
-   git push origin main
-   ```
-2. GitHub 저장소 페이지(`https://github.com/Hwan1d/agy-test`)로 이동합니다.
-3. **Settings** 탭 -> 좌측 메뉴의 **Pages** 클릭.
-4. **Build and deployment** 항목의 **Source**를 `Deploy from a branch`로 선택.
-5. Branch를 `main` / `/(root)`로 지정하고 **Save** 클릭.
-6. 1~2분 후 `https://hwan1d.github.io/agy-test/` 주소로 전 세계 어디서든 대시보드가 라이브 호스팅됩니다!
+1. **GitHub Pages 배포 소스 설정**:
+   - GitHub 저장소([https://github.com/Hwan1d/agy-test](https://github.com/Hwan1d/agy-test))로 이동합니다.
+   - **Settings** 탭 → 좌측 메뉴의 **Pages** 클릭.
+   - **Build and deployment**의 **Source**를 `Deploy from a branch` 대신 **`GitHub Actions`** 로 선택합니다.
+2. **코드 푸시**:
+   - 터미널에서 변경사항을 원격 저장소로 푸시하면 GitHub Actions가 자동으로 실행됩니다:
+     ```bash
+     git push --force origin main
+     ```
+3. **자동 배포 완료**:
+   - GitHub Actions가 Secrets에 등록된 `KAKAO_MAP_KEY`와 `ITS_API_KEY`를 배포 시점에만 안전하게 주입하여 사이트를 빌드합니다.
+   - 약 1분 후 **`https://hwan1d.github.io/agy-test/`** 주소로 접속하면, 모든 방문자가 키 입력 없이 카카오 지도와 실시간 CCTV를 바로 볼 수 있습니다!
 
 ---
 

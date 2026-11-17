@@ -70,18 +70,21 @@ const TrafficMap = (() => {
     const script = document.createElement('script');
     script.id = 'kakao-maps-sdk';
     script.type = 'text/javascript';
-    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(apiKey)}&autoload=false`;
+    // https: 프로토콜 명시 (file:/// 또는 로컬 환경 호환)
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(apiKey)}&autoload=false`;
 
     script.onload = () => {
       if (typeof kakao !== 'undefined' && kakao.maps) {
         onSuccess();
       } else {
-        if (onError) onError();
+        console.error('카카오 지도 SDK는 로드되었으나 kakao.maps 객체를 초기화하지 못했습니다.');
+        if (onError) onError(new Error('kakao.maps 객체 초기화 실패'));
       }
     };
 
-    script.onerror = () => {
-      if (onError) onError();
+    script.onerror = (e) => {
+      console.error('카카오 지도 SDK 스크립트 네트워크 로드 실패:', e);
+      if (onError) onError(e);
     };
 
     document.head.appendChild(script);
@@ -171,17 +174,40 @@ const TrafficMap = (() => {
 
   // 키 오류 안내 UI
   const renderKeyErrorGuide = (container, key) => {
+    const isFileProtocol = window.location.protocol === 'file:';
+    const originText = isFileProtocol ? 'file:// (로컬 파일 직접 실행)' : window.location.origin;
+
     container.innerHTML = `
-      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:#94a3b8; padding:24px; text-align:center; background:#0b0f19;">
-        <h3 style="color:#ef4444; margin-bottom:8px;">⚠️ 카카오 지도 SDK 로딩 실패</h3>
-        <p style="font-size:0.85rem; line-height:1.6; margin-bottom:14px;">
-          카카오 개발자 사이트(<a href="https://developers.kakao.com" target="_blank" style="color:#38bdf8;">developers.kakao.com</a>)의<br>
-          <strong>[앱 설정] → [플랫폼] → [Web 사이트 도메인]</strong>에<br>
-          현재 접속 주소(<code>${window.location.origin}</code>)가 등록되어 있는지 확인해 주세요.
-        </p>
-        <button onclick="localStorage.removeItem('${KAKAO_KEY_STORAGE}'); location.reload();" class="btn-icon">
-          키 재설정하기
-        </button>
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:#f8fafc; padding:24px; text-align:center; background:#0b0f19;">
+        <div style="width:48px; height:48px; border-radius:12px; background:rgba(239,68,68,0.15); display:flex; align-items:center; justify-content:center; font-size:1.6rem; margin-bottom:12px;">⚠️</div>
+        <h3 style="color:#ef4444; font-size:1.1rem; margin-bottom:8px;">카카오 지도 SDK 연결 실패</h3>
+        
+        ${isFileProtocol ? `
+          <div style="background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.3); padding:12px 16px; border-radius:8px; max-width:480px; margin-bottom:16px; font-size:0.82rem; color:#fde68a; line-height:1.6;">
+            <strong>🚨 원인: 브라우저 파일 직접 실행(file://) 감지</strong><br>
+            카카오 지도 API는 브라우저 보안 정책상 <code>file://</code> 방식으로 직접 열면 도메인 인증이 불가능하여 차단됩니다.<br>
+            터미널에서 <code>python3 -m http.server 8080</code> 실행 후 <code>http://localhost:8080</code>으로 접속해 주세요!
+          </div>
+        ` : `
+          <p style="font-size:0.83rem; color:#94a3b8; max-width:480px; line-height:1.6; margin-bottom:14px;">
+            카카오 개발자 콘솔(<a href="https://developers.kakao.com" target="_blank" style="color:#38bdf8;">developers.kakao.com</a>)의<br>
+            <strong>[앱 설정] → [플랫폼] → [Web 사이트 도메인]</strong>에<br>
+            현재 접속 주소인 <strong style="color:#38bdf8; font-family:monospace;">${originText}</strong> 가 등록되어 있는지 확인해 주세요.
+          </p>
+        `}
+
+        <div style="font-size:0.75rem; color:#64748b; font-family:monospace; margin-bottom:16px;">
+          사용 중인 키: ${key ? key.substring(0, 8) + '...' : '(없음)'} | 접속 프로토콜: ${window.location.protocol}
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <button onclick="localStorage.removeItem('${KAKAO_KEY_STORAGE}'); location.reload();" class="btn-icon">
+            키 다시 입력하기
+          </button>
+          <button onclick="location.reload();" class="btn-watch-cctv" style="width:auto; padding:0 16px;">
+            다시 시도
+          </button>
+        </div>
       </div>
     `;
   };
