@@ -159,7 +159,7 @@ const TrafficApp = (() => {
     });
   };
 
-  // CCTV 상세 팝업 모달 (HLS 스트리밍 & 비디오 재생 및 Mixed Content 방어)
+  // CCTV 상세 팝업 모달 (실제 고속도로 관제 뷰어 & Mixed Content 방어)
   const openCctvModal = (cctvId) => {
     const cctv = TrafficData.getCctvById(cctvId);
     if (!cctv) return;
@@ -168,6 +168,7 @@ const TrafficApp = (() => {
     const modalTitle = document.getElementById('modalCctvTitle');
     const modalVideo = document.getElementById('modalCctvVideo');
     const modalImage = document.getElementById('modalCctvImage');
+    const modalCanvas = document.getElementById('modalCctvCanvas');
     const modalLocation = document.getElementById('modalCctvLocation');
     const modalSpeed = document.getElementById('modalCctvSpeed');
     const modalDesc = document.getElementById('modalCctvDesc');
@@ -177,8 +178,9 @@ const TrafficApp = (() => {
     const btnNewTab = document.getElementById('btnOpenStreamInNewTab');
     const btnExternal = document.getElementById('btnExternalStream');
     const btnReload = document.getElementById('btnReloadCctvStream');
+    const streamFpsBadge = document.getElementById('streamFpsBadge');
 
-    if (modalTitle) modalTitle.innerText = `${cctv.name} [실시간 관제 영상]`;
+    if (modalTitle) modalTitle.innerText = `${cctv.name} [실시간 관제]`;
     if (modalLocation) modalLocation.innerText = `${cctv.highway} (${cctv.direction})`;
     if (modalSpeed) {
       modalSpeed.innerText = cctv.speed;
@@ -186,16 +188,92 @@ const TrafficApp = (() => {
     }
     if (modalDesc) modalDesc.innerText = cctv.description;
 
-    // 이전 스트림 및 캔버스 정리
-    stopCctvCanvas();
+    // 타임스탬프 OSD 업데이트
+    if (streamFpsBadge) {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('ko-KR', { hour12: false });
+      streamFpsBadge.innerText = `${timeStr} KST | HD LIVE`;
+    }
+
+    // 이전 스트림 정리
     if (currentHls) {
       currentHls.destroy();
       currentHls = null;
     }
 
+    // 캔버스 가상 시뮬레이션은 사용하지 않으므로 숨김
+    if (modalCanvas) modalCanvas.style.display = 'none';
+
     // UI 상태 초기화
-    if (videoLoader) videoLoader.style.display = 'flex';
+    if (videoLoader) videoLoader.style.display = 'none';
     if (videoError) videoError.style.display = 'none';
+
+    // 기본 현장 스틸컷 사진 설정
+    const fallbackImageSrc = cctv.imgPlaceholder || 'https://images.unsplash.com/photo-1545179605-1296651e9d43?auto=format&fit=crop&w=600&q=80';
+    if (modalImage) {
+      modalImage.src = fallbackImageSrc;
+    }
+
+    let streamUrl = cctv.hlsUrl || cctv.videoUrl;
+    let originalUrl = streamUrl;
+
+    // Mixed Content 대응: 현재가 https이고 streamUrl이 http인 경우 https로 변경 시도
+    if (streamUrl && streamUrl.startsWith('http://') && window.location.protocol === 'https:') {
+      streamUrl = streamUrl.replace('http://', 'https://');
+    }
+
+    // 새 탭 및 재연결 버튼 바인딩
+    const openOriginalStream = () => {
+      if (originalUrl) {
+        window.open(originalUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        openItsModal();
+      }
+    };
+    if (btnNewTab) btnNewTab.onclick = openOriginalStream;
+    if (btnExternal) btnExternal.onclick = openOriginalStream;
+    if (btnReload) btnReload.onclick = () => openCctvModal(cctvId);
+
+    // 1. 순수 정지영상 포맷(JPG)인 경우: 즉시 실제 스틸컷 사진 표출
+    if (cctv.cctvFormat === 'JPG' || (streamUrl && /\.(jpg|jpeg|png)$/i.test(streamUrl))) {
+      if (modalVideo) modalVideo.style.display = 'none';
+      if (modalImage) {
+        modalImage.style.display = 'block';
+        if (streamUrl) modalImage.src = streamUrl;
+      }
+      if (videoLoader) videoLoader.style.display = 'none';
+      if (videoError) videoError.style.display = 'none';
+      if (modal) modal.classList.add('active');
+      return;
+    }
+
+    // 2. 스트림 URL이 없는 기본 프리셋 카메라인 경우:
+    if (!streamUrl) {
+      if (modalVideo) modalVideo.style.display = 'none';
+      if (modalImage) modalImage.style.display = 'block';
+      if (videoLoader) videoLoader.style.display = 'none';
+      if (videoError) {
+        videoError.style.display = 'flex';
+        videoError.style.background = 'rgba(15, 23, 42, 0.78)';
+      }
+      if (errorMsg) {
+        errorMsg.innerHTML = `
+          <strong style="color:#38bdf8; font-size:0.9rem;">📹 기본 거점 도로 현장 화면</strong><br>
+          <span style="font-size:0.75rem; color:#cbd5e1; display:inline-block; margin-top:6px; line-height:1.5;">
+            현재 지점은 기본 프리셋 관제 화면입니다.<br>
+            전국의 실제 고속도로 실시간 CCTV(HLS 스트림/스틸컷)를 연결하시려면<br>
+            아래 버튼을 눌러 상단 ITS 실시간 연동을 시작하세요.
+          </span>
+        `;
+      }
+      if (btnNewTab) {
+        btnNewTab.innerText = '🔍 ITS 전국 실시간 CCTV 불러오기';
+      }
+      if (modal) modal.classList.add('active');
+      return;
+    }
+
+    // 3. 실제 스트림 URL이 있는 경우 (HLS/MP4):
     if (modalVideo) {
       modalVideo.style.display = 'block';
       modalVideo.muted = true;
@@ -206,22 +284,11 @@ const TrafficApp = (() => {
       modalVideo.load();
     }
     if (modalImage) modalImage.style.display = 'none';
+    if (videoLoader) videoLoader.style.display = 'flex';
 
-    let streamUrl = cctv.hlsUrl || cctv.videoUrl;
-
-    // Mixed Content 대응: 현재가 https이고 streamUrl이 http인 경우 https로 변경 시도
-    let originalUrl = streamUrl;
-    if (streamUrl && streamUrl.startsWith('http://') && window.location.protocol === 'https:') {
-      streamUrl = streamUrl.replace('http://', 'https://');
+    if (btnNewTab) {
+      btnNewTab.innerText = '🔗 원본 실시간 스트림 새 창 열기';
     }
-
-    // 새 탭 및 재연결 버튼 바인딩
-    const openOriginalStream = () => {
-      if (originalUrl) window.open(originalUrl, '_blank', 'noopener,noreferrer');
-    };
-    if (btnNewTab) btnNewTab.onclick = openOriginalStream;
-    if (btnExternal) btnExternal.onclick = openOriginalStream;
-    if (btnReload) btnReload.onclick = () => openCctvModal(cctvId);
 
     // 재생 성공 시 로더 숨김
     if (modalVideo) {
@@ -280,26 +347,22 @@ const TrafficApp = (() => {
     }
   };
 
-  // 영상 로딩 에러 시 캔버스 관제 모드로 자동 전환 및 안내
+  // 영상 로딩 에러 또는 Mixed Content 차단 시 실제 도로 스틸컷 & 바로가기 안내
   const handleStreamError = (cctv, originalUrl) => {
     const videoLoader = document.getElementById('cctvVideoLoader');
     const videoError = document.getElementById('cctvVideoError');
     const modalVideo = document.getElementById('modalCctvVideo');
+    const modalImage = document.getElementById('modalCctvImage');
     const errorMsg = document.getElementById('cctvErrorMsg');
+    const btnNewTab = document.getElementById('btnOpenStreamInNewTab');
 
     if (videoLoader) videoLoader.style.display = 'none';
 
-    if (modalVideo) {
-      modalVideo.style.display = 'none';
-    }
-
-    // 캔버스 실시간 고속도로 관제 애니메이션 시작
-    startCctvCanvas(cctv);
-
-    if (!originalUrl) {
-      // 기본 관제 프리셋: 에러 오버레이 없이 캔버스 관제 모드만 깔끔하게 노출
-      if (videoError) videoError.style.display = 'none';
-      return;
+    // 비디오 대신 현장 스틸컷 사진 표출
+    if (modalVideo) modalVideo.style.display = 'none';
+    if (modalImage) {
+      modalImage.src = cctv.imgPlaceholder || 'https://images.unsplash.com/photo-1545179605-1296651e9d43?auto=format&fit=crop&w=600&q=80';
+      modalImage.style.display = 'block';
     }
 
     const isHttpsMixed = originalUrl && originalUrl.startsWith('http://') && window.location.protocol === 'https:';
@@ -307,159 +370,30 @@ const TrafficApp = (() => {
     if (errorMsg) {
       if (isHttpsMixed) {
         errorMsg.innerHTML = `
-          <strong>🔒 브라우저 HTTPS 보안(Mixed Content) 차단 감지</strong><br>
-          공공기관 CCTV 스트림(HTTP)이 브라우저 보안에 의해 차단되었습니다.<br>
-          [캔버스 관제 모드]로 작동 중이며, 아래 버튼을 누르면 원본 영상이 새 창에서 열립니다!
+          <strong style="color:#fbbf24; font-size:0.88rem;">🔒 브라우저 HTTPS 보안(Mixed Content) 보호</strong><br>
+          <span style="font-size:0.75rem; color:#cbd5e1; display:inline-block; margin-top:6px; line-height:1.5;">
+            공공기관(ITS) 도로 영상(HTTP)은 브라우저 보안 규정상 웹페이지 내부 직접 재생이 차단되었습니다.<br>
+            아래 <strong>[원본 실시간 스트림 새 창 열기]</strong>를 누르시면 고속도로 현장 실시간 영상을 바로 보실 수 있습니다.
+          </span>
         `;
       } else {
         errorMsg.innerHTML = `
-          📺 <strong>실시간 관제 모드 작동 중</strong><br>
-          (공공기관 원본 실시간 스트림 확인은 아래 버튼을 눌러주세요)
+          <strong style="color:#38bdf8; font-size:0.88rem;">📺 도로 현장 관제 모드</strong><br>
+          <span style="font-size:0.75rem; color:#cbd5e1; display:inline-block; margin-top:6px; line-height:1.5;">
+            현재 지점의 실시간 도로 라이브 영상을 보시려면 아래 버튼을 눌러주세요.
+          </span>
         `;
       }
     }
 
-    if (videoError) videoError.style.display = 'flex';
-  };
-
-  let canvasAnimId = null;
-
-  // 실시간 고속도로 관제 캔버스 시뮬레이터 (비디오 폴백 및 상시 관제용)
-  const startCctvCanvas = (cctv) => {
-    stopCctvCanvas();
-    const canvas = document.getElementById('modalCctvCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    canvas.style.display = 'block';
-
-    const cars = [
-      { lane: 0, y: 50, speed: 2.2, color: '#f8fafc' },
-      { lane: 1, y: 150, speed: 1.8, color: '#38bdf8' },
-      { lane: 2, y: 90, speed: 2.6, color: '#ef4444' },
-      { lane: 0, y: 260, speed: 2.1, color: '#fbbf24' },
-      { lane: 2, y: 220, speed: 2.4, color: '#ffffff' }
-    ];
-
-    let laneOffset = 0;
-
-    const render = () => {
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // 도로 아스팔트 배경
-      ctx.fillStyle = '#1e293b';
-      ctx.beginPath();
-      ctx.moveTo(140, 0);
-      ctx.lineTo(500, 0);
-      ctx.lineTo(600, canvas.height);
-      ctx.lineTo(40, canvas.height);
-      ctx.closePath();
-      ctx.fill();
-
-      // 도로 외곽선
-      ctx.strokeStyle = '#64748b';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(140, 0);
-      ctx.lineTo(40, canvas.height);
-      ctx.moveTo(500, 0);
-      ctx.lineTo(600, canvas.height);
-      ctx.stroke();
-
-      // 중앙 차선 점선 애니메이션
-      laneOffset = (laneOffset + 3.5) % 36;
-      ctx.strokeStyle = '#f8fafc';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([14, 18]);
-      ctx.lineDashOffset = -laneOffset;
-
-      // 1-2차로 구분선
-      ctx.beginPath();
-      ctx.moveTo(260, 0);
-      ctx.lineTo(220, canvas.height);
-      ctx.stroke();
-
-      // 2-3차로 구분선
-      ctx.beginPath();
-      ctx.moveTo(380, 0);
-      ctx.lineTo(420, canvas.height);
-      ctx.stroke();
-      ctx.setLineDash([]); // 초기화
-
-      // 달리는 차량들
-      cars.forEach(car => {
-        car.y += car.speed;
-        if (car.y > canvas.height + 40) car.y = -30;
-
-        // 원근감에 따른 X 위치 및 크기 계산
-        const progress = Math.max(0, Math.min(1, car.y / canvas.height));
-        const laneCenterX = (car.lane === 0) 
-          ? (200 - progress * 70) 
-          : (car.lane === 1) 
-            ? (320 + (progress - 0.5) * 20) 
-            : (440 + progress * 70);
-
-        const carW = 20 + progress * 16;
-        const carH = 34 + progress * 24;
-
-        // 차량 그림자
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-        ctx.fillRect(laneCenterX - carW/2 - 2, car.y - carH/2 + 3, carW + 4, carH + 4);
-
-        // 차체
-        ctx.fillStyle = car.color;
-        ctx.beginPath();
-        ctx.roundRect(laneCenterX - carW/2, car.y - carH/2, carW, carH, 4);
-        ctx.fill();
-
-        // 헤드라이트 빛 효과
-        ctx.fillStyle = 'rgba(254, 240, 138, 0.85)';
-        ctx.fillRect(laneCenterX - carW/2 + 2, car.y + carH/2 - 2, 4, 3);
-        ctx.fillRect(laneCenterX + carW/2 - 6, car.y + carH/2 - 2, 4, 3);
-
-        // 테일램프
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(laneCenterX - carW/2 + 2, car.y - carH/2, 4, 2);
-        ctx.fillRect(laneCenterX + carW/2 - 6, car.y - carH/2, 4, 2);
-      });
-
-      // CCTV 화면 노이즈/스캔라인 효과
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
-      for (let i = 0; i < canvas.height; i += 4) {
-        ctx.fillRect(0, i, canvas.width, 1.5);
-      }
-
-      // OSD 텍스트 정보 (CCTV 관제 모니터)
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString('ko-KR', { hour12: false });
-      const dateStr = now.toISOString().split('T')[0];
-
-      ctx.fillStyle = '#22c55e';
-      ctx.font = '700 13px monospace';
-      ctx.fillText(`● REC [LIVE CCTV]`, 18, 28);
-
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = '12px monospace';
-      ctx.fillText(`${dateStr} ${timeStr} KST`, 18, 48);
-      ctx.fillText(`CAM: ${cctv.name}`, 18, 66);
-
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillText(`LOC: ${cctv.highway} (${cctv.direction})`, 18, canvas.height - 28);
-      ctx.fillText(`SPD: ${cctv.speed} | GPS: ${cctv.coord[0].toFixed(3)}N, ${cctv.coord[1].toFixed(3)}E`, 18, canvas.height - 12);
-
-      canvasAnimId = requestAnimationFrame(render);
-    };
-
-    render();
-  };
-
-  const stopCctvCanvas = () => {
-    if (canvasAnimId) {
-      cancelAnimationFrame(canvasAnimId);
-      canvasAnimId = null;
+    if (btnNewTab) {
+      btnNewTab.innerText = '🔗 원본 실시간 스트림 새 창 열기';
     }
-    const canvas = document.getElementById('modalCctvCanvas');
-    if (canvas) canvas.style.display = 'none';
+
+    if (videoError) {
+      videoError.style.display = 'flex';
+      videoError.style.background = 'rgba(15, 23, 42, 0.82)';
+    }
   };
 
   const closeCctvModal = () => {
@@ -470,7 +404,6 @@ const TrafficApp = (() => {
 
     if (videoLoader) videoLoader.style.display = 'none';
     if (videoError) videoError.style.display = 'none';
-    stopCctvCanvas();
 
     if (modalVideo) {
       modalVideo.pause();

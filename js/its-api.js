@@ -111,6 +111,8 @@ const ItsApi = (() => {
             const name = item.cctvname || `CCTV #${idx + 1}`;
             const cctvUrl = item.cctvurl;
 
+            const isImageFormat = (cctvType === 3) || (item.cctvformat === 'JPG') || /\.(jpg|jpeg|png)$/i.test(cctvUrl);
+
             return {
               id: `its-${idx}-${Math.round(lat * 1000)}-${Math.round(lng * 1000)}`,
               name: name,
@@ -119,11 +121,11 @@ const ItsApi = (() => {
               direction: '실시간 관제',
               speed: 'LIVE',
               status: 'normal',
-              videoUrl: cctvUrl,
-              hlsUrl: cctvUrl,
-              cctvFormat: item.cctvformat || 'HLS',
-              imgPlaceholder: 'https://images.unsplash.com/photo-1545179605-1296651e9d43?auto=format&fit=crop&w=600&q=80',
-              description: `국가교통정보센터(ITS) 실시간 스트리밍 (${name})`
+              videoUrl: isImageFormat ? '' : cctvUrl,
+              hlsUrl: isImageFormat ? '' : cctvUrl,
+              cctvFormat: isImageFormat ? 'JPG' : (item.cctvformat || 'HLS'),
+              imgPlaceholder: isImageFormat ? cctvUrl : 'https://images.unsplash.com/photo-1545179605-1296651e9d43?auto=format&fit=crop&w=600&q=80',
+              description: `국가교통정보센터(ITS) 실시간 ${isImageFormat ? 'CCTV 캡처 사진' : '스트리밍'} (${name})`
             };
           });
       } else {
