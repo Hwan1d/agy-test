@@ -34,6 +34,9 @@ const TrafficApp = (() => {
 
     // 6. 자동 갱신 타이머 시작
     startAutoRefresh();
+
+    // 7. 실시간 돌발·사고 정보 초기 즉시 조회
+    fetchRealtimeIncidents(true);
   };
 
   // 실시간 시계 (KST 기준)
@@ -115,12 +118,23 @@ const TrafficApp = (() => {
       }
     }
 
+    if (!TrafficData.isIncidentsReady()) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:28px 12px; color:var(--text-muted); font-size:0.8rem; line-height:1.6;">
+          <div class="spinner-dot" style="margin:0 auto 10px; width:22px; height:22px;"></div>
+          <strong style="color:var(--text-primary);">ITS 실시간 돌발 정보 조회 중...</strong><br>
+          전국 경찰청·도로공사 사고 정보를 수신하고 있습니다.
+        </div>
+      `;
+      return;
+    }
+
     if (!incidents || incidents.length === 0) {
       container.innerHTML = `
         <div style="text-align:center; padding:28px 12px; color:var(--text-muted); font-size:0.8rem; line-height:1.6;">
           <div style="font-size:1.8rem; margin-bottom:8px;">🟢</div>
-          <strong>실시간 특이 돌발 상황 없음</strong><br>
-          전국 주요 고속도로가 원활하게 소통 중입니다.
+          <strong style="color:var(--text-primary);">전국 고속도로 특이 돌발 없음</strong><br>
+          현재 전산망에 등록된 긴급 사고·통제가 없으며 정상 소통 중입니다.
         </div>
       `;
       return;

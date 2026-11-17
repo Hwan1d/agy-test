@@ -257,69 +257,19 @@ const TrafficData = (() => {
     }
   ];
 
-  // 실시간 돌발 상황 데이터 (초기값)
-  let incidents = [
-    {
-      id: 'inc-1',
-      type: 'accident',
-      typeName: '추돌 사고',
-      severity: 'danger',
-      highway: '경부고속도로',
-      locationName: '경부선 서울방향 천안JC 부근 1차로',
-      coord: [36.810, 127.155],
-      time: '10분 전',
-      detail: '승용차 2중 추돌 사고 발생. 견인 조치 진행 중, 후미 3.5km 정체.',
-      delayMin: 25
-    },
-    {
-      id: 'inc-2',
-      type: 'construction',
-      typeName: '도로 공사',
-      severity: 'warning',
-      highway: '영동고속도로',
-      locationName: '영동선 강릉방향 신갈JC - 용인IC 구간',
-      coord: [37.260, 127.150],
-      time: '25분 전',
-      detail: '노면 포장 및 차선 도색 작업 진행 중 (갓길 및 3차로 통제).',
-      delayMin: 15
-    },
-    {
-      id: 'inc-3',
-      type: 'congestion',
-      typeName: '극심 정체',
-      severity: 'danger',
-      highway: '수도권제1순환',
-      locationName: '제1순환 판교방향 구리IC - 강일IC',
-      coord: [37.560, 127.170],
-      time: '5분 전',
-      detail: '출퇴근 및 물류 통행량 급증으로 시속 25km 이하 서행 지속.',
-      delayMin: 30
-    },
-    {
-      id: 'inc-4',
-      type: 'weather',
-      typeName: '강풍 주의',
-      severity: 'info',
-      highway: '서해안고속도로',
-      locationName: '서해대교 교량 전구간',
-      coord: [36.920, 126.830],
-      time: '35분 전',
-      detail: '해상 돌풍(풍속 14m/s) 감지. 통행차량 50km/h 이하 감속 운행 권고.',
-      delayMin: 5
-    },
-    {
-      id: 'inc-5',
-      type: 'debris',
-      typeName: '낙하물 신고',
-      severity: 'warning',
-      highway: '수도권제1순환',
-      locationName: '일산방향 중동IC 부근 2차로',
-      coord: [37.505, 126.750],
-      time: '7분 전',
-      detail: '타이어 잔해물 도로 낙하 신고 접수. 순찰대 긴급 출동 수거 중.',
-      delayMin: 10
-    }
-  ];
+  // 실시간 돌발 상황 데이터 (ITS 실제 공공데이터 연동 관리)
+  let liveIncidents = [];
+  let isIncidentsLoaded = false;
+
+  const getIncidents = () => liveIncidents;
+
+  const setIncidents = (newList) => {
+    isIncidentsLoaded = true;
+    liveIncidents = Array.isArray(newList) ? newList : [];
+  };
+
+  const hasLiveIncidents = () => liveIncidents.length > 0;
+  const isIncidentsReady = () => isIncidentsLoaded;
 
   // 상태 색상 코드 매핑
   const STATUS_CONFIG = {
@@ -367,23 +317,6 @@ const TrafficData = (() => {
     const fromIts = itsCctvPoints.find(c => c.id === id);
     if (fromIts) return fromIts;
     return CCTV_POINTS.find(c => c.id === id);
-  };
-
-  // 돌발상황 목록 반환 및 갱신 (기본 프리셋 + ITS 실제 공공데이터)
-  let liveIncidents = null;
-
-  const getIncidents = () => {
-    return (liveIncidents && liveIncidents.length > 0) ? liveIncidents : incidents;
-  };
-
-  const setIncidents = (newList) => {
-    if (Array.isArray(newList)) {
-      liveIncidents = newList;
-    }
-  };
-
-  const hasLiveIncidents = () => {
-    return Boolean(liveIncidents && liveIncidents.length > 0);
   };
 
   // 전체 요약 KPI 계산
@@ -471,6 +404,7 @@ const TrafficData = (() => {
     getIncidents,
     setIncidents,
     hasLiveIncidents,
+    isIncidentsReady,
     getOverviewStats,
     simulateLiveUpdate
   };
