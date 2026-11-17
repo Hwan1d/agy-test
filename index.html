@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>K-Traffic | 전국 도로교통 실시간 모니터링 시스템 (카카오맵 연동)</title>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%3E%3Ctext y=%2226%22 font-size=%2224%22>🚦</text></svg>">
+
+  <!-- 환경 설정 파일 로드 (Git 미추적 로컬 파일) -->
+  <script src="config.js" onerror="window.ENV = window.ENV || {};"></script>
+
+  <!-- HLS.js (실시간 CCTV 스트리밍 플레이어) -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <!-- 1. GNB 헤더 -->
+    <header class="dashboard-header">
+      <div class="header-left">
+        <div class="logo-badge">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+          </svg>
+        </div>
+        <div class="app-title-group">
+          <h1>
+            K-Traffic 관제센터
+            <span class="live-indicator" id="livePulseIndicator">
+              <span class="live-dot"></span>
+              LIVE
+            </span>
+          </h1>
+          <p>카카오맵 실시간 도로 소통 현황 & CCTV 관제</p>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="clock-display" id="liveClock">
+          --:--:-- KST
+        </div>
+
+        <div class="auto-refresh-pill">
+          <label class="switch">
+            <input type="checkbox" id="autoRefreshToggle" checked>
+            <span class="slider"></span>
+          </label>
+          <span id="autoRefreshStatusText">자동갱신 (10초)</span>
+          <span id="refreshCountdown" style="font-weight: 700; color: #38bdf8;">10초</span>
+        </div>
+
+        <div class="header-actions">
+          <!-- ITS CCTV 연동 모달 버튼 -->
+          <button class="btn-icon" id="btnOpenItsModal" title="국가교통정보센터(ITS) 실시간 CCTV 연동 설정">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            <span>ITS CCTV 연동</span>
+          </button>
+
+          <!-- 카카오 실시간 교통정보 오버레이 토글 -->
+          <button class="btn-icon active" id="btnToggleTrafficLayer" title="카카오 실시간 교통정보 오버레이 켜기/끄기">
+            <span class="traffic-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;"></span>
+            <span id="trafficLayerText">카카오 교통정보 ON</span>
+          </button>
+
+          <button class="btn-icon" id="btnManualRefresh" title="즉시 새로고침">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+            <span>새로고침</span>
+          </button>
+
+          <button class="btn-icon" id="btnThemeToggle" title="테마 전환">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <span class="theme-text">다크 모드</span>
+          </button>
+
+          <button class="btn-icon btn-mobile-only" id="btnMobilePanelToggle" title="패널 열기">
+            <span>패널</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 2. 상단 KPI 요약 카드 바 -->
+    <section class="kpi-summary-bar">
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap kpi-icon-speed">⚡</div>
+        <div class="kpi-info">
+          <span class="kpi-label">전국 고속도로 평균 통행속도</span>
+          <span class="kpi-value" id="kpiAvgSpeed">-- km/h</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap kpi-icon-jam">🛑</div>
+        <div class="kpi-info">
+          <span class="kpi-label">실시간 총 정체 구간 길이</span>
+          <span class="kpi-value" id="kpiCongestedLen" style="color: #ef4444;">-- km</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap kpi-icon-incident">⚠️</div>
+        <div class="kpi-info">
+          <span class="kpi-label">돌발 상황 (사고·공사·통제)</span>
+          <span class="kpi-value" id="kpiIncidents" style="color: #f59e0b;">-- 건</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap kpi-icon-ratio">🟢</div>
+        <div class="kpi-info">
+          <span class="kpi-label">전체 구간 원활 소통 비율</span>
+          <span class="kpi-value" id="kpiNormalRatio" style="color: #10b981;">-- %</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 메인 콘텐츠 (좌: 관제피드, 중: 지도, 우: 통계분석) -->
+    <main class="dashboard-main">
+      <!-- 좌측 관제 피드 패널 -->
+      <aside class="dashboard-side-col">
+        <!-- 노선 검색 및 상태 필터 -->
+        <div class="panel-section">
+          <div class="panel-section-title">
+            <span>고속도로 노선 선택 & 필터</span>
+          </div>
+          <div class="control-box">
+            <select id="highwayFilterSelect" class="custom-select">
+              <option value="all">전국 고속도로 전체 보기</option>
+            </select>
+            <div class="filter-button-group">
+              <button class="traffic-filter-btn active" data-status="all">전체</button>
+              <button class="traffic-filter-btn" data-status="normal">원활</button>
+              <button class="traffic-filter-btn" data-status="slow">서행</button>
+              <button class="traffic-filter-btn" data-status="congested">정체</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 실시간 돌발 상황 피드 -->
+        <div class="panel-section">
+          <div class="panel-section-title">
+            <span>실시간 돌발·사고 상황</span>
+            <span class="panel-badge">실시간 감지</span>
+          </div>
+          <div class="incident-feed-list" id="incidentListContainer">
+            <!-- 동적 렌더링 -->
+          </div>
+        </div>
+
+        <!-- 주요 거점 CCTV 썸네일 그리드 -->
+        <div class="panel-section">
+          <div class="panel-section-title">
+            <span>주요 거점 실시간 CCTV</span>
+            <span class="panel-badge">LIVE 8</span>
+          </div>
+          <div class="cctv-grid-list" id="cctvListContainer">
+            <!-- 동적 렌더링 -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- 중앙 인터랙티브 지도 영역 (카카오맵) -->
+      <div class="map-center-container">
+        <div id="trafficMap"></div>
+
+        <!-- 지도 이동 시 나타나는 플로팅 CCTV 재검색 버튼 -->
+        <button id="btnFloatBoundsCctv" class="map-floating-search-btn" style="display:none;" title="현재 보고 있는 지도 영역의 ITS 실시간 CCTV 검색">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+          <span>현 위치 CCTV 검색</span>
+        </button>
+
+        <!-- 지도 범례 (Legend) -->
+        <div class="map-legend-overlay">
+          <div class="legend-title">소통 정보 기준 (카카오 TRAFFIC)</div>
+          <div class="legend-item">
+            <span class="legend-color-bar bar-normal"></span>
+            <span>원활 (80 km/h 이상 / 녹색)</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color-bar bar-slow"></span>
+            <span>서행 (40 ~ 80 km/h / 노란색)</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color-bar bar-congested"></span>
+            <span>정체 (40 km/h 미만 / 빨간색)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 우측 통계 분석 패널 -->
+      <aside class="dashboard-side-col right-col">
+        <!-- 노선별 속도 비교 바 차트 -->
+        <div class="panel-section">
+          <div class="panel-section-title">
+            <span>주요 노선별 평균 속도</span>
+            <span class="panel-badge">km/h</span>
+          </div>
+          <div class="chart-container-box">
+            <canvas id="speedBarChart"></canvas>
+          </div>
+        </div>
+
+        <!-- 시간대별 속도 추이 라인 차트 -->
+        <div class="panel-section">
+          <div class="panel-section-title">
+            <span>시간대별 통행속도 추이</span>
+            <span class="panel-badge">24시간</span>
+          </div>
+          <div class="chart-container-box">
+            <canvas id="trendLineChart"></canvas>
+          </div>
+        </div>
+
+        <!-- 소통 비율 도넛 차트 -->
+        <div class="panel-section">
+          <div class="panel-section-title">
+            <span>전국 소통 상태 비율</span>
+            <span class="panel-badge">구간 분포</span>
+          </div>
+          <div class="chart-container-box doughnut-wrap">
+            <canvas id="statusDoughnutChart"></canvas>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- CCTV 실시간 영상 팝업 모달 (HLS 스트리밍 & 비디오 플레이어) -->
+  <div class="modal-container" id="cctvModal">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalCctvTitle">서울요금소 CCTV [LIVE]</h3>
+        <button class="modal-close-btn" id="btnModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-video-stream-box">
+          <!-- 비디오 태그 (실시간 스트림 재생) -->
+          <video id="modalCctvVideo" controls autoplay muted playsinline style="width:100%; height:100%; object-fit:cover; background:#000;"></video>
+          <img id="modalCctvImage" src="" alt="CCTV Stream" style="display:none; width:100%; height:100%; object-fit:cover;">
+          <div class="modal-stream-overlay">
+            <span class="stream-live-badge">● LIVE STREAM</span>
+            <span class="stream-timestamp">30 FPS | HD</span>
+          </div>
+        </div>
+        <div class="modal-details">
+          <div class="modal-details-row">
+            <span style="color: var(--text-muted);">위치:</span>
+            <strong id="modalCctvLocation">경부고속도로</strong>
+          </div>
+          <div class="modal-details-row">
+            <span style="color: var(--text-muted);">현재 통행속도:</span>
+            <span id="modalCctvSpeed" class="modal-status-badge">-- km/h</span>
+          </div>
+          <div class="modal-details-row" style="margin-top: 4px;">
+            <p id="modalCctvDesc" style="color: var(--text-secondary); font-size: 0.78rem;"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITS OpenAPI 연동 설정 모달 -->
+  <div class="modal-container" id="itsModal">
+    <div class="modal-backdrop" id="itsModalBackdrop"></div>
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3>📹 국가교통정보센터(ITS) 실시간 CCTV 연동</h3>
+        <button class="modal-close-btn" id="btnItsModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:14px; line-height:1.5;">
+          <strong>국가교통정보센터(ITS) Open API</strong> 인증키를 등록하면 전국의 실제 고속도로·국도 실시간 CCTV 영상(HLS)이 지도 위에 직접 연결됩니다.
+        </p>
+
+        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+          <div>
+            <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:4px; color:var(--text-primary);">
+              ITS API 인증키 (apiKey)
+            </label>
+            <input type="text" id="inputItsApiKey" class="custom-select" placeholder="발급받은 ITS API 키 입력" style="font-family:monospace;">
+          </div>
+
+          <div style="display:flex; gap:10px;">
+            <div style="flex:1;">
+              <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:4px; color:var(--text-primary);">
+                도로 유형
+              </label>
+              <select id="selectItsRoadType" class="custom-select">
+                <option value="ex" selected>고속도로 (ex)</option>
+                <option value="its">국도 (its)</option>
+                <option value="all">전체 도로 (all)</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:4px; color:var(--text-primary);">
+                영상 형식
+              </label>
+              <select id="selectItsCctvType" class="custom-select">
+                <option value="1" selected>실시간 스트리밍 (HLS)</option>
+                <option value="2">동영상 파일 (MP4)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="itsStatusMsg" style="display:none; padding:8px 12px; border-radius:6px; font-size:0.78rem; margin-bottom:14px;"></div>
+
+        <div style="display:flex; gap:8px;">
+          <button id="btnFetchCurrentBoundsCctv" class="btn-watch-cctv" style="flex:1; padding:9px 0;">
+            🔍 현재 화면 CCTV 불러오기
+          </button>
+          <button id="btnFetchAllBoundsCctv" class="btn-icon" style="flex:1; justify-content:center; padding:9px 0;">
+            🇰🇷 전국 고속도로 불러오기
+          </button>
+        </div>
+
+        <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-color); font-size:0.74rem; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+          <span>인증키가 없으신가요?</span>
+          <a href="https://openapi.its.go.kr" target="_blank" rel="noopener noreferrer" style="color:var(--accent-cyan); text-decoration:none; font-weight:600;">
+            ITS Open API 키 무료 발급받기 &rarr;
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 외부 통계 라이브러리 (Chart.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- 애플리케이션 스크립트 -->
+  <script src="js/data.js"></script>
+  <script src="js/its-api.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
