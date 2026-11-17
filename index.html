@@ -321,7 +321,7 @@
           <strong>국가교통정보센터(ITS) Open API</strong> 인증키를 등록하면 전국의 실제 고속도로·국도 실시간 CCTV 영상(HLS)이 지도 위에 직접 연결됩니다.
         </p>
 
-        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+        <form onsubmit="return false;" autocomplete="off" style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
           <div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
               <label style="font-size:0.75rem; font-weight:600; color:var(--text-primary);">
@@ -331,7 +331,7 @@
                 🔒 보안 키 적용됨
               </span>
             </div>
-            <input type="password" id="inputItsApiKey" class="custom-select" placeholder="시스템 보안 인증키 적용 중 (직접 입력 시 대체)" style="font-family:monospace;">
+            <input type="password" id="inputItsApiKey" class="custom-select" placeholder="시스템 보안 인증키 적용 중 (직접 입력 시 대체)" style="font-family:monospace;" autocomplete="current-password">
             <p id="itsKeyHelpText" style="font-size:0.72rem; color:var(--text-muted); margin-top:4px; line-height:1.4;">
               시스템에 등록된 보안 인증키로 자동 연결됩니다. 키를 직접 변경할 때만 입력해 주세요.
             </p>
@@ -359,7 +359,7 @@
               </select>
             </div>
           </div>
-        </div>
+        </form>
 
         <div id="itsStatusMsg" style="display:none; padding:8px 12px; border-radius:6px; font-size:0.78rem; margin-bottom:14px;"></div>
 

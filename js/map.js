@@ -156,10 +156,10 @@ const TrafficMap = (() => {
           소스코드에 키를 하드코딩하지 않고 안전하게 관리하기 위해<br>
           <strong>config.js</strong>를 생성하거나, 아래 입력창에 키를 입력해 주세요. (브라우저 로컬 스토리지에만 보관됩니다)
         </p>
-        <div style="display:flex; gap:8px; width:100%; max-width:380px;">
-          <input type="password" id="inputInitKakaoKey" class="custom-select" placeholder="카카오 JavaScript 키 입력" style="flex:1; font-family:monospace;">
-          <button id="btnSaveInitKakaoKey" class="btn-watch-cctv" style="width:auto; padding:0 16px;">저장 & 시작</button>
-        </div>
+        <form onsubmit="return false;" autocomplete="off" style="display:flex; gap:8px; width:100%; max-width:380px;">
+          <input type="password" id="inputInitKakaoKey" class="custom-select" placeholder="카카오 JavaScript 키 입력" style="flex:1; font-family:monospace;" autocomplete="current-password">
+          <button id="btnSaveInitKakaoKey" type="button" class="btn-watch-cctv" style="width:auto; padding:0 16px;">저장 & 시작</button>
+        </form>
       </div>
     `;
 

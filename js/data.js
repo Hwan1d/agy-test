@@ -350,7 +350,7 @@ const TrafficData = (() => {
     return {
       avgSpeed,
       congestedLength: Math.round(congestedLength),
-      incidentCount: incidents.length,
+      incidentCount: getIncidents().length,
       normalRatio,
       totalSections,
       normalCount,
